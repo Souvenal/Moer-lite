@@ -72,6 +72,7 @@ target_include_directories(Moer PUBLIC ./externals)
 target_include_directories(Moer PUBLIC ./src)
 target_include_directories(Moer PUBLIC ./externals/json/include)
 target_include_directories(Moer PUBLIC ./externals/embree/include)
+target_include_directories(Moer PUBLIC ./externals/tbb/include)
 
 if(WIN32)
   set(LIBS_PATH ${PROJECT_SOURCE_DIR}/libs/win)
@@ -97,6 +98,7 @@ add_custom_command(TARGET Moer POST_BUILD
   ${EMBREE_DLL} $<TARGET_FILE_DIR:Moer>)
 
 target_link_libraries(Moer PUBLIC embree3)
+target_link_libraries(Moer PUBLIC tbb)
 target_link_libraries(Moer PUBLIC tinyobjloader)
 
 if(APPLE)
