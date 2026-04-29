@@ -17,6 +17,10 @@ if(WIN32)
   add_definitions(-DNOMINMAX)
 endif()
 
+if(APPLE)
+  add_compile_options(-Wno-deprecated-declarations)
+endif()
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/target/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/target/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/target/bin)
@@ -89,7 +93,6 @@ target_link_directories(Moer PUBLIC ${LIBS_PATH})
 target_link_directories(Moer PUBLIC ${PROJECT_SOURCE_DIR}/target/lib)
 
 add_custom_command(TARGET Moer POST_BUILD
-  DEPENDS ${LIBS_PATH}/embree3.dll
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
   ${EMBREE_DLL} $<TARGET_FILE_DIR:Moer>)
 
