@@ -3,6 +3,7 @@
 class Octree : public Acceleration {
 public:
   Octree() = default;
+  virtual ~Octree();
   void build() override;
   bool rayIntersect(Ray &ray, int *geomID, int *primID, float *u,
                             float *v) const override;
