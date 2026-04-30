@@ -8,6 +8,8 @@
 #include <ResourceLayer/FileUtil.h>
 #include <ResourceLayer/Image.h>
 #include <ResourceLayer/JsonUtil.h>
+#include <tbb/tbb.h>
+#include <atomic>
 #include <chrono>
 #include <fstream>
 #include <regex>
@@ -25,7 +27,22 @@ inline void printProgress(float percentage) {
 }
 
 int main(int argc, char** argv) {
-    const std::string sceneDir = std::string(argv[1]);
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " [--no-tbb] <scene-directory>\n";
+        std::cerr << "  scene-directory   path to directory containing scene.json\n";
+        std::cerr << "  --no-tbb          disable TBB parallel rendering\n";
+        return 1;
+    }
+
+    bool useTbb = true;
+    int sceneArgIdx = 1;
+
+    if (argc > 2 && std::string(argv[1]) == "--no-tbb") {
+        useTbb = false;
+        sceneArgIdx = 2;
+    }
+
+    const std::string sceneDir = std::string(argv[sceneArgIdx]);
     FileUtil::setWorkingDirectory(sceneDir);
     std::string   sceneJsonPath = FileUtil::getFullPath("scene.json");
     std::ifstream fstm(sceneJsonPath);
@@ -37,20 +54,42 @@ int main(int argc, char** argv) {
     int           spp        = sampler->xSamples * sampler->ySamples;
     int           width = camera->film->size[0], height = camera->film->size[1];
 
+    printf("Rendering %dx%d, %d spp, %s\n",
+           width, height, spp,
+           useTbb ? "TBB parallel" : "single-threaded");
+
     auto start = std::chrono::system_clock::now();
 
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            Vector2f NDC{(float)x / width, (float)y / height};
-            Spectrum li(.0f);
-            for (int i = 0; i < spp; ++i) {
-                Ray ray = camera->sampleRayDifferentials(CameraSample{sampler->next2D(), sampler->next2D(), .0f}, NDC);
-                li += integrator->li(ray, *scene, sampler);
-            }
-            camera->film->deposit({x, y}, li / spp);
+    if (useTbb) {
+        std::atomic<int> finishedPixels{0};
+        tbb::parallel_for(0, height, [&](int y) {
+            for (int x = 0; x < width; ++x) {
+                Vector2f NDC{(float)x / width, (float)y / height};
+                Spectrum li(.0f);
+                for (int i = 0; i < spp; ++i) {
+                    Ray ray = camera->sampleRayDifferentials(CameraSample{sampler->next2D(), sampler->next2D(), .0f}, NDC);
+                    li += integrator->li(ray, *scene, sampler);
+                }
+                camera->film->deposit({x, y}, li / spp);
 
-            int finished = x + y * width;
-            if (finished % 5 == 0) { printProgress((float)finished / (height * width)); }
+                int finished = finishedPixels.fetch_add(1) + 1;
+                if (finished % 5 == 0) { printProgress((float)finished / (height * width)); }
+            }
+        });
+    } else {
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                Vector2f NDC{(float)x / width, (float)y / height};
+                Spectrum li(.0f);
+                for (int i = 0; i < spp; ++i) {
+                    Ray ray = camera->sampleRayDifferentials(CameraSample{sampler->next2D(), sampler->next2D(), .0f}, NDC);
+                    li += integrator->li(ray, *scene, sampler);
+                }
+                camera->film->deposit({x, y}, li / spp);
+
+                int finished = x + y * width;
+                if (finished % 5 == 0) { printProgress((float)finished / (height * width)); }
+            }
         }
     }
     printProgress(1.f);

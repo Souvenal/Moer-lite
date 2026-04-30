@@ -6,3 +6,8 @@
 /cmake-build-release*
 .idea
 .vscode
+
+*.png
+*.hdr
+!results/*.png
+!results/*.hdr

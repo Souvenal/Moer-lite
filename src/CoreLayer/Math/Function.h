@@ -21,3 +21,8 @@ inline bool Quadratic(float A, float B, float C, float *t0, float *t1) {
     if ((float)*t0 > (float)*t1) std::swap(*t0, *t1);
     return true;
 }
+
+template <typename T>
+constexpr T lerp(T a, T b, T t) noexcept {
+    return a + t * (b - a);
+}
